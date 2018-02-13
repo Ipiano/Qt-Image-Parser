@@ -1,5 +1,7 @@
 #include "imageparse.h"
 
+#include "clip2tri/clip2tri/clip2tri.h"
+
 #include <stdexcept>
 
 #include <QVector>
@@ -9,10 +11,12 @@
 #include <QQueue>
 
 #include <algorithm>
+#include <vector>
 
 typedef ImageParser::Shape Shape;
+using std::vector;
 
-QVector<Shape> ImageParser::parseImage(QString fileName)
+QVector<QPolygonF> ImageParser::parseImage(QString fileName)
 {
     qDebug() << "Opening file...";
     QImage loaded(fileName);
@@ -23,7 +27,7 @@ QVector<Shape> ImageParser::parseImage(QString fileName)
     return parseImage(loaded);
 }
 
-QVector<Shape> ImageParser::parseImage(const QImage& image)
+QVector<QPolygonF> ImageParser::parseImage(const QImage& image)
 {
     qDebug() << "Reading image colors...";
     QVector<QVector<QRgb>> pixMap(image.height(), QVector<QRgb>(image.width()));
@@ -39,7 +43,7 @@ QVector<Shape> ImageParser::parseImage(const QImage& image)
     return parseImage(pixMap);
 }
 
-QVector<Shape> ImageParser::parseImage(const QVector<QVector<QRgb> > &pixMap)
+QVector<QPolygonF> ImageParser::parseImage(const QVector<QVector<QRgb> > &pixMap)
 {
     qDebug() << "Making black and white...";
     if(!pixMap.size() || !pixMap[0].size())
@@ -57,11 +61,11 @@ QVector<Shape> ImageParser::parseImage(const QVector<QVector<QRgb> > &pixMap)
     return _findShapes(blackWhite);
 }
 
-QVector<Shape> ImageParser::_findShapes(QVector<QVector<bool> >& bwImage)
+QVector<QPolygonF> ImageParser::_findShapes(QVector<QVector<bool> >& bwImage)
 {
     qDebug() << "Searching for shapes...";
     QVector<QVector<bool>> singleShape;
-    QVector<Shape> out;
+    QVector<Shape> shapes;
 
     const std::function<void(QPolygonF&, QPair<int64_t, int64_t>)> shift =
     [](QPolygonF& poly, QPair<int64_t, int64_t> offset)
@@ -86,11 +90,17 @@ QVector<Shape> ImageParser::_findShapes(QVector<QVector<bool> >& bwImage)
                 shift(newShape.outer, offset);
                 for(QPolygonF& p : newShape.inner)
                     shift(p, offset);
-                out += newShape;
+                shapes += newShape;
             }
         }
         qDebug() << double(i*bwImage[0].size())/(bwImage.size()*bwImage[0].size()) * 100 << "%";
     }
+
+    qDebug() << "Triangulating";
+    QVector<QPolygonF> out;
+
+    for(Shape& s : shapes)
+        out += _triangulate(s);
 
     return out;
 }
@@ -323,3 +333,38 @@ QPolygonF ImageParser::_followBoundary(const QVector<QVector<bool>>& bwImage, in
     //qDebug() << "End Loop";
     return points;
 }
+
+QVector<QPolygonF> ImageParser::_triangulate(const Shape& s)
+{
+    using c2t::Point;
+
+    vector<Point> outerPoly;
+    vector<vector<Point>> holes;
+    vector<Point> result;
+
+    for(const QPointF& p : s.outer)
+        outerPoly.push_back(Point(p.x(), p.y()));
+
+    holes.resize(s.inner.size());
+    int i = 0;
+    for(const QPolygonF& poly : s.inner)
+    {
+        vector<Point>& hole = holes[i];
+        for(const QPointF& p : poly)
+            hole.push_back(Point(p.x(), p.y()));
+    }
+
+    c2t::clip2tri clipper;
+    clipper.triangulate(holes, result, outerPoly);
+
+    QVector<QPolygonF> out;
+    for(int i=0; i<result.size(); i+=3)
+    {
+        out += QPolygonF({QPointF(result[i].x, result[i].y),
+                         QPointF(result[i+1].x, result[i+1].y),
+                         QPointF(result[i+2].x, result[i+2].y)});
+    }
+
+    return out;
+}
+

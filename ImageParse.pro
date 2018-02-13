@@ -24,13 +24,31 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += \
-        main.cpp \
-        mainwindow.cpp \
-    imageparse.cpp
+    main.cpp \
+    mainwindow.cpp \
+    imageparse.cpp \
+\
+    clip2tri/clip2tri/clip2tri.cpp \
+    clip2tri/clipper/clipper.cpp \
+    clip2tri/poly2tri/common/shapes.cc \
+    clip2tri/poly2tri/sweep/advancing_front.cc \
+    clip2tri/poly2tri/sweep/cdt.cc \
+    clip2tri/poly2tri/sweep/sweep.cc \
+    clip2tri/poly2tri/sweep/sweep_context.cc \
 
 HEADERS += \
-        mainwindow.h \
-    imageparse.h
+    mainwindow.h \
+    imageparse.h \
+\
+    clip2tri/clip2tri/clip2tri.h \
+    clip2tri/clipper/clipper.hpp \
+    clip2tri/poly2tri/common/shapes.h \
+    clip2tri/poly2tri/common/utils.h \
+    clip2tri/poly2tri/sweep/advancing_front.h \
+    clip2tri/poly2tri/sweep/cdt.h \
+    clip2tri/poly2tri/sweep/sweep.h \
+    clip2tri/poly2tri/sweep/sweep_context.h \
+    clip2tri/poly2tri/poly2tri.h \
 
 FORMS += \
         mainwindow.ui

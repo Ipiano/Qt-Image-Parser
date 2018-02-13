@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QString fileName = QFileDialog::getOpenFileName();
 
-   QVector<Shape> shapes;
+   QVector<QPolygonF> shapes;
 
    QImage img;
    try{
@@ -47,14 +47,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
    //scene->addPixmap(QPixmap::fromImage(img));
 
-   for(Shape& s : shapes)
+   for(QPolygonF& p : shapes)
    {
-       scene->addPolygon(s.outer);
-
-       for(QPolygonF& p : s.inner)
-       {
-           scene->addPolygon(p, QPen(QColor(255, 0, 0)));
-       }
+       scene->addPolygon(p);
    }
 
 }
