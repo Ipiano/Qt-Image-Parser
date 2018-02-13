@@ -100,7 +100,10 @@ QVector<QPolygonF> ImageParser::_findShapes(QVector<QVector<bool> >& bwImage)
     QVector<QPolygonF> out;
 
     for(Shape& s : shapes)
+    {
+        _simplify(s);
         out += _triangulate(s);
+    }
 
     return out;
 }
@@ -332,6 +335,79 @@ QPolygonF ImageParser::_followBoundary(const QVector<QVector<bool>>& bwImage, in
 
     //qDebug() << "End Loop";
     return points;
+}
+
+void ImageParser::_simplify(Shape &s)
+{
+    s.outer = _simplify(s.outer);
+    for(QPolygonF& p : s.inner)
+        p = _simplify(p);
+}
+
+QPolygonF ImageParser::_simplify(const QPolygonF &p)
+{
+    if(p.size() <= 3) return p;
+
+    const double EPSILON = 0.001;
+
+    //Cross product of vectors AB, AC using points A, B, C
+    const std::function<double(const QPointF&, const QPointF&, const QPointF&)> cross =
+    [](const QPointF& A, const QPointF& B, const QPointF& C)
+    {
+        QPointF AB(B.x() - A.x(), B.y() - A.y());
+        QPointF AC(C.x() - A.x(), C.y() - A.y());
+        return AB.x() * AC.y() - AB.y() * AC.x();
+    };
+
+    QPolygonF out;
+
+    //Assume point 0 is a corner
+    QPointF pointA = p[0];
+    uint64_t indexA = 0;
+    uint64_t indexB = 1;
+    uint64_t indexC = 2;
+
+    bool notDone = true;
+    bool firstPoint = true;
+    uint64_t firstIndex = 0;
+
+    //Walk two consecutive points around the polygon
+    //Checking the cross product between them and the last corner
+    //If it's non-0, then B is a new corner
+    do
+    {
+        double cProd = abs(cross(pointA, p[indexB], p[indexC]));
+        if(cProd > EPSILON)
+        {
+            indexA = indexB;
+            pointA = p[indexA];
+
+            //Don't double-push first point
+            if(indexA != firstIndex)
+                out.push_back(pointA);
+
+            //Check if the previous corner was the first
+            //If so, unflag this
+            if(notDone) notDone = false;
+
+            //If this is the first corner found
+            //set flags so we don't exit,
+            //and mark the corner
+            if(firstPoint)
+            {
+                firstPoint = false;
+                notDone = true;
+                firstIndex = indexA;
+            }
+        }
+        indexB = (indexB+1) % p.size();
+        indexC = (indexC+1) % p.size();
+
+    //Continue around until the first corner is found
+    //a second time
+    }while(indexA != firstIndex || notDone);
+
+    return out;
 }
 
 QVector<QPolygonF> ImageParser::_triangulate(const Shape& s)

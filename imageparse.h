@@ -28,6 +28,8 @@ private:
     static void _bfsBlackWhite(const QVector<QVector<bool> > &bwImage, std::function<void(int, int)> handler, int64_t x, int64_t y, bool color);
     static QPolygonF _followBoundary(const QVector<QVector<bool>>& bwImage, int64_t x, int64_t y, bool outer= true);
     static QVector<QPolygonF> _triangulate(const Shape& s);
+    static void _simplify(Shape &s);
+    static QPolygonF _simplify(const QPolygonF& p);
 };
 
 #endif // IMAGEPARSE_H
